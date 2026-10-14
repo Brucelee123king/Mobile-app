@@ -55,6 +55,7 @@ mq && mq.addEventListener && mq.addEventListener("change", applyTheme);
 /* ---------- sheet, dialogs, toast ---------- */
 let sheetResolve = null, lastFocus = null, pendingVal = null;
 function openSheet(html, resolve) {
+  killPreview();
   const o = $("#sheet"), was = o.classList.contains("show"); if (!was) lastFocus = document.activeElement; sheetResolve = resolve || null;
   o.innerHTML = `<div class="sheet-in" tabindex="-1"><div class="grab"></div>${html}</div>`;
   o.classList.add("show"); o.setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden";
@@ -64,13 +65,14 @@ function openSheet(html, resolve) {
 }
 function hideSheet(val = null) {
   const o = $("#sheet"); if (!o.classList.contains("show")) return;
+  killPreview(); playerSheetClosed();
   o.classList.remove("show"); o.setAttribute("aria-hidden", "true"); document.body.style.overflow = "";
   const r = sheetResolve; sheetResolve = null; r && r(val);
   lastFocus && document.contains(lastFocus) && lastFocus.focus({ preventScroll: true });
 }
 function closeSheet(val = null) { if (history.state && history.state.sheet) { pendingVal = val; history.back(); } else hideSheet(val); }
 window.addEventListener("popstate", () => { hideSheet(pendingVal); pendingVal = null; });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#sheet").classList.contains("show")) closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if ($("#sheet").classList.contains("show")) closeSheet(); else if (P) reqClose(); });
 
 function ask({ title, desc, fields = [], ok = "Save", danger = false }) {
   return new Promise(res => {
@@ -159,7 +161,7 @@ function viewToday(n, d) {
   <div class="cols">${next}
   <div class="card"><div class="row sp"><b>${ico("drop", "hi w")}Water</b><span class="mu">${L.water} / ${S.waterGoal} ml</span></div>${bar(pct(L.water, S.waterGoal), "w")}<div class="row" style="margin-top:12px"><button class="wbtn" data-act="water" data-v="250">+250 ml</button><button class="wbtn alt" data-act="water" data-v="500">+500 ml</button></div></div>
   <div class="card"><div class="row sp"><b>${ico("flame", "hi o")}Calories</b><span class="mu">${kcalEaten(d, n)} / ${kcalPlan(n, d)} kcal</span></div>${bar(pct(kcalEaten(d, n), kcalPlan(n, d)))}</div>
-  <button class="card tap" data-act="goto" data-v="exercise"><div class="row sp"><b>${ico("dumbbell", "hi")}${esc(ex.title)}</b><span class="mu">${ex.rest ? "Rest day" : eDone + "/" + ex.items.length}</span></div><div class="mu" style="margin-top:4px">${MODES[effMode()].name} mode · tap for guided exercises</div></button>
+  <div class="card"><button class="tapin" data-act="goto" data-v="exercise"><div class="row sp"><b>${ico("dumbbell", "hi")}${esc(ex.title)}</b><span class="mu">${ex.rest ? "Rest day" : eDone + "/" + ex.items.length}</span></div><div class="mu" style="margin-top:4px">${MODES[effMode()].name} mode · tap for guided exercises</div></button><button class="btn block" style="margin-top:12px" data-act="pstart">${pic("play")} Start workout</button></div>
   <div class="card tiles span2"><div><div class="stat">${streak()}</div><div class="mu sm">day streak</div></div><div><div class="stat">${weekScore()}%</div><div class="mu sm">7-day score</div></div><div><div class="stat">${lastWeight()}</div><div class="mu sm">kg now</div></div></div>
   <div class="card span2"><b>${ico("bulb", "hi o")}Tip of the day</b><div class="mu" style="font-size:15px;margin-top:4px">${TIPS[((n % TIPS.length) + TIPS.length) % TIPS.length]}</div></div></div>`;
 }
@@ -189,7 +191,7 @@ function viewEx(n, d) {
   return `<h1>Workout</h1><p class="mu">${ph.name} (${ph.weeks})</p>${dayNav(n)}
   <div class="card"><b>Exercise mode: ${M.name}</b><div class="mu">${S.mode && S.mode !== "auto" ? "Chosen by you" : "Auto for age " + S.age} · ${M.note}</div><div style="margin-top:12px">${seg("mode", Object.keys(MODES).map(k => [k, MODES[k].name]), mode, "Exercise mode")}</div>${S.mode && S.mode !== "auto" ? `<button class="pill" style="margin-top:10px" data-act="mode" data-v="auto">Use auto for my age</button>` : ""}</div>
   ${all ? `<div class="card"><b>${e.rest ? "Recovery complete" : "Workout complete"} 🎉</b><div class="mu">Nice work — rest and hydrate.</div></div>` : ""}
-  <div class="card"><div class="row sp"><h3>${esc(e.title)}</h3>${e.rest ? '<span class="tag">REST DAY</span>' : `<span class="mu">${done}/${e.items.length}</span>`}</div>${e.rest ? '<p class="mu">Active recovery helps your body burn fat and build strength. Keep it light today.</p>' : ""}` +
+  <div class="card"><div class="row sp"><h3>${esc(e.title)}</h3>${e.rest ? '<span class="tag">REST DAY</span>' : `<span class="mu">${done}/${e.items.length}</span>`}</div><button class="btn block" style="margin:12px 0 4px" data-act="pstart">${pic("play")} Start workout · ~${estMin(e, mode)} min</button>${e.rest ? '<p class="mu">Active recovery helps your body burn fat and build strength. Keep it light today.</p>' : ""}` +
     e.items.map((t, i) => { const k = guideKey(t), on = !!L.ex[i]; return `<div class="item ${i === 0 ? "first" : ""} ${on ? "done on" : ""}"><div class="b t">${esc(adaptText(t, mode))}${k ? `<div><button class="how" data-act="guide" data-v="${k}" aria-label="How to do ${esc(GUIDES[k].n)}">▶ How to do it</button></div>` : ""}</div><button class="chkb" data-act="ex" data-v="${i}" role="checkbox" aria-checked="${on}" aria-label="Mark ${esc(adaptText(t, mode))} done"><span class="chk" aria-hidden="true">${on ? "✓" : ""}</span></button></div>`; }).join("") + `</div>
   <p class="mu" style="margin:0 4px">Tap “How to do it” for a diagram and tips for women. Warm up first, and stop if you feel pain.</p>`;
 }
@@ -220,6 +222,7 @@ function viewProgress() {
   <h2>Settings</h2>
   <div class="card list"><div class="li"><span>Appearance</span></div><div style="padding-bottom:8px">${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]], th, "Appearance")}</div>
   <div class="li"><span>Diet</span></div><div style="padding-bottom:8px">${seg("diet", [["veg", "Vegetarian"], ["nonveg", "Veg + Non-veg"]], S.diet || "veg", "Diet")}</div>
+  <div class="li"><span>Coach character</span></div><div style="padding-bottom:8px">${seg("avatar", [["f", "Female"], ["m", "Male"]], S.avatar || "f", "Coach character")}</div>
   <div class="li"><span id="rl">Reminders (water + meals)</span><button class="sw" role="switch" aria-checked="${!!S.remind}" aria-labelledby="rl" data-act="remind"></button></div>
   <button class="li btnrow" data-act="foods"><span>My foods</span><span class="v">${(S.foods || []).length}</span></button>
   <button class="li btnrow" data-act="age"><span>Age</span><span class="v">${S.age || "-"}</span></button>
@@ -345,7 +348,7 @@ const setWater = (v, silent) => {
   else if (delta) toast((delta > 0 ? "+" : "") + delta + " ml", () => setWater(-delta, true));
 };
 async function act(a, ds) {
-  const v = ds.v;
+  const v = ds.v; if (a[0] === "p") ensureAudio();
   switch (a) {
     case "close": return closeSheet();
     case "undo": { const u = toastUndo; $("#toast").classList.remove("show"); u && u(); return; }
@@ -369,7 +372,19 @@ async function act(a, ds) {
     case "fooddel": { const x = (S.foods || []).find(f => f.id === v), r = await ask({ title: "Delete food?", desc: "“" + (x ? x.name : "") + "” will be removed from My foods. Meals you already swapped to stay as they are.", ok: "Delete", danger: true }); if (r) { S.foods = S.foods.filter(f => f.id !== v); save(); render(); } openFoods(); return; }
     case "play": { const f = $("#vframe"); if (f) f.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${v}?autoplay=1&rel=0&playsinline=1&modestbranding=1" title="Exercise video" allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`; return; }
     case "vsel": { const box = $("#vid"); if (box) box.innerHTML = videoHTML(ds.k, +v); return; }
-    case "guide": return openSheet(guideHTML(v, effMode()));
+    case "guide": openSheet(guideHTML(v, effMode())); injectPreview(v); return;
+    case "pstart": return startPlayer();
+    case "pclose": return reqClose();
+    case "ppause": return P && setPaused(!P.paused);
+    case "pprev": return P && plPrev();
+    case "pnext": return P && plNext(false);
+    case "pdone": return P && plNext(true);
+    case "pmute": S.mute = !S.mute; save(); return P && paintCtl();
+    case "pavatar": return setAvatar(S.avatar === "m" ? "f" : "m");
+    case "avatar": return setAvatar(v);
+    case "pdetails": return plDetails();
+    case "pfinish": return plFinish();
+    case "p3mode": case "p3speed": case "p3view": return p3set(a, v);
     case "mode": S.mode = v; save(); return render();
     case "theme": S.theme = v; delete S.dark; save(); return render();
     case "diet": S.diet = v; save(); toast("Meal plan updated"); return render();
@@ -406,6 +421,268 @@ document.addEventListener("submit", e => {
   }
 });
 document.addEventListener("input", e => { if (["sw", "sg", "sh"].includes(e.target.id)) bmiHint(); });
+
+/* ---------- guided workout player (3D coach) ---------- */
+const PI = {
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  prev: '<path d="M19 5v14L8 12z" fill="currentColor"/><path d="M5 5v14"/>',
+  next: '<path d="M5 5v14l11-7z" fill="currentColor"/><path d="M19 5v14"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>',
+  play: '<path d="M7 4.500v15l13-7.500z" fill="currentColor" stroke="none"/>',
+  vol: '<path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.500 8.500a5 5 0 0 1 0 7M18.500 5.500a9 9 0 0 1 0 13"/>',
+  mute: '<path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m16 9 5 6M21 9l-5 6"/>',
+  check: '<path d="m5 12.500 4.500 4.500L19 7.500"/>',
+};
+const pic = (n, c = "") => `<svg class="ico ${c}" viewBox="0 0 24 24" aria-hidden="true">${PI[n]}</svg>`;
+
+let f3dP = null;
+const loadF3D = () => window.Fit3D ? Promise.resolve(window.Fit3D) : f3dP || (f3dP = import("./scene3d.js").then(() => window.Fit3D || null).catch(() => { f3dP = null; return null; }));
+async function mount3D(el, opts) { try { const F = await loadF3D(); return F ? F.mount(el, opts) : null; } catch { return null; } }
+
+/* audio, wake lock */
+let AC = null, wl = null;
+function ensureAudio() { try { if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } if (AC && AC.state === "suspended") AC.resume(); } catch {} }
+function tone(f, d, vol = 0.18, when = 0) {
+  if (S.mute || !AC) return;
+  try { const t = AC.currentTime + when, o = AC.createOscillator(), g = AC.createGain(); o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + 0.05); } catch {}
+}
+const beep = () => tone(880, 0.12), goBeep = () => tone(1320, 0.4, 0.22), chime = () => { tone(660, 0.18); tone(990, 0.32, 0.18, 0.16); };
+async function wake(on) { try { if (on) { if (navigator.wakeLock && !wl) { wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => { wl = null; }); } } else if (wl) { const w = wl; wl = null; await w.release(); } } catch { wl = null; } }
+document.addEventListener("visibilitychange", () => { if (P && !document.hidden) wake(true); });
+
+/* text -> steps */
+const stripName = t => t.replace(/\s*\d+\s*×\s*\d+.*$/, "").replace(/\s*\d+\s*(sec|min|rounds?)\b.*$/i, "").replace(/[,\s]+$/, "").trim() || t;
+function parseItems(items, mode) {
+  const out = [];
+  items.forEach((raw, idx) => {
+    const t = adaptText(raw, mode).trim(); let m;
+    if ((m = t.match(/^[×x]\s*(\d+)\s*rounds?/i))) {
+      let rest = 0; if (out.length && out[out.length - 1].kind === "rest") rest = out.pop().secs;
+      const grp = []; while (out.length && out[out.length - 1].kind === "ex" && out[out.length - 1].type === "time" && out[out.length - 1].secs <= 180) grp.unshift(out.pop());
+      if (grp.length) out.push({ kind: "block", exs: grp, rounds: +m[1], rest, idx });
+      return;
+    }
+    if ((m = t.match(/^Rest\s+(\d+)\s*(sec|min)/i))) { out.push({ kind: "rest", secs: +m[1] * (/min/i.test(m[2]) ? 60 : 1), idx }); return; }
+    const o = { kind: "ex", name: stripName(t), key: guideKey(t) || guideKey(raw), idx, sets: 1 };
+    if ((m = t.match(/(\d+)\s*×\s*(\d+)\s*(sec|min)?/i))) { o.sets = +m[1]; if (m[3]) { o.type = "time"; o.secs = +m[2] * (/min/i.test(m[3]) ? 60 : 1); } else { o.type = "reps"; o.reps = +m[2]; } }
+    else if ((m = t.match(/(\d+)\s*(min|sec)\b/i))) { o.type = "time"; o.secs = +m[1] * (/min/i.test(m[2]) ? 60 : 1); }
+    else if ((m = t.match(/(\d+)\s*rounds?/i))) { o.type = "reps"; o.reps = +m[1]; o.unit = "rounds"; }
+    else o.type = "free";
+    out.push(o);
+  });
+  return out;
+}
+function buildSteps(e, mode) {
+  const ents = parseItems(e.items, mode), steps = [], restSec = mode === "gentle" ? 30 : mode === "advanced" ? 15 : 20, hiit = /HIIT/i.test(e.title);
+  const R = (secs, idx) => ({ type: "rest", name: "Rest", secs, item: idx });
+  const W = (o, extra) => ({ type: o.type, name: o.name, key: o.key, secs: o.secs, reps: o.reps, unit: o.unit, item: o.idx, hiit, ...extra });
+  ents.forEach(o => {
+    const tmp = [];
+    if (o.kind === "rest") tmp.push(R(o.secs, o.idx));
+    else if (o.kind === "block") for (let r = 1; r <= o.rounds; r++) { o.exs.forEach(x => tmp.push(W(x, { label: `Round ${r}/${o.rounds}` }))); if (o.rest && r < o.rounds) tmp.push(R(o.rest, o.idx)); }
+    else for (let s = 1; s <= o.sets; s++) { tmp.push(W(o, o.sets > 1 ? { label: `Set ${s}/${o.sets}` } : {})); if (s < o.sets) tmp.push(R(restSec, o.idx)); }
+    const a = steps[steps.length - 1], b = tmp[0], long = x => x.type === "time" && x.secs >= 300;
+    if (a && b && a.type !== "rest" && b.type !== "rest" && !long(a) && !long(b)) steps.push(R(15, b.item));
+    steps.push(...tmp);
+  });
+  while (steps.length && steps[steps.length - 1].type === "rest") steps.pop();
+  let seg = 0;
+  steps.forEach((s, j) => {
+    if (s.type === "rest") { const n = steps.slice(j).find(x => x.type !== "rest"); s.nextName = n ? n.name : ""; s.key = n ? n.key : null; s.seg = Math.max(0, seg - 1); }
+    else s.seg = seg++;
+  });
+  return steps;
+}
+const estSecs = s => s.type === "rest" ? s.secs : s.secs || (s.type === "reps" ? s.reps * (s.unit === "rounds" ? 60 : 3) : 60);
+function estMin(e, mode) { try { return Math.max(1, Math.round(buildSteps(e, mode).reduce((a, s) => a + estSecs(s), 0) / 60)); } catch { return 10; } }
+const stepRate = s => s.type === "rest" ? 2 : s.hiit ? 8 : ({ stretch: 2.5, breathe: 2.5, surya: 4, walk: 5, knees: 5 }[s.key] ?? 8);
+
+/* player state + lifecycle */
+let P = null;
+const pq = s => P.el.querySelector(s);
+const fmtT = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const avGlyph = () => ((S.avatar || "f") === "m" ? "♂" : "♀");
+
+function startPlayer() {
+  if (P) return;
+  const date = view, n = dayIdx(date), e = exFor(n), steps = buildSteps(e, effMode());
+  if (!steps.length) return toast("Nothing to start today");
+  ensureAudio();
+  const segCount = steps.filter(s => s.type !== "rest").length, el = document.createElement("div");
+  el.id = "player"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "Guided workout: " + e.title);
+  const me = P = { el, steps, segCount, date, n, e, i: 0, stepMs: 0, totalMs: 0, kcal: 0, doneCnt: 0, cd: 3000, cdSec: 4, paused: false, started: false, finished: false, last: performance.now(), v: null, curKey: undefined, opener: document.activeElement, timer: 0 };
+  el.innerHTML = `<div class="pl-in"><div class="pl-top"><button class="pl-b sm" data-act="pclose" aria-label="Close workout">${pic("close")}</button><div class="pl-seg" id="pl-seg" role="progressbar" aria-label="Workout progress" aria-valuemin="0" aria-valuemax="${segCount}" aria-valuenow="0">${"<i><b></b></i>".repeat(segCount)}</div><button class="pl-b sm" data-act="pavatar" id="pl-av"></button></div>
+  <div class="pl-head"><h1 id="pl-name" class="pl-name">Get ready</h1><div id="pl-sub" class="pl-sub"></div><div id="pl-big" class="pl-big" aria-hidden="true"></div></div>
+  <div class="pl-stage" id="pl-stage"><div class="pl-fb" id="pl-fb"></div><div class="pl-3d" id="pl-3d"></div><div class="pl-cd" id="pl-cd" aria-hidden="true">3</div></div>
+  <div class="pl-nextrow"><span id="pl-next" class="pl-next"></span><button class="pill" data-act="pdetails" id="pl-det">Details</button></div>
+  <div class="pl-doneb"><button class="btn block" data-act="pdone" id="pl-done" hidden>Done</button></div>
+  <div class="pl-ctl"><button class="pl-b" data-act="pprev" aria-label="Previous exercise">${pic("prev")}</button><button class="pl-b main" data-act="ppause" id="pl-pause" aria-label="Pause workout">${pic("pause")}</button><button class="pl-b" data-act="pnext" aria-label="Skip">${pic("next")}</button><button class="pl-b" data-act="pmute" id="pl-mute"></button></div>
+  <div class="sr" id="pl-live" role="status" aria-live="polite"></div></div>`;
+  document.body.appendChild(el);
+  [$("#app"), $("#nav")].forEach(x => x && (x.inert = true));
+  document.body.style.overflow = "hidden";
+  try { history.pushState({ player: 1 }, ""); } catch {}
+  wake(true); paintCtl(); paintSeg();
+  pq("#pl-big").textContent = "3"; announce("Get ready. Starting in 3");
+  const first = steps[0]; P.curKey = first.key || null; fallbackFig(P.curKey);
+  P.timer = setInterval(tick, 250); beep();
+  const pb = pq("#pl-pause"); pb && pb.focus({ preventScroll: true });
+  mount3D(pq("#pl-3d"), { gender: S.avatar || "f", autorotate: false }).then(v => {
+    if (P !== me || !v) { v && v.destroy(); return; }
+    me.v = v; v.setExercise(me.curKey || null); v.pause(me.paused); pq("#pl-stage").classList.add("has3d");
+  });
+}
+function fallbackFig(key) {
+  const fb = pq("#pl-fb"); if (!fb) return;
+  const g = key && GUIDES[key]; fb.innerHTML = g ? `<div class="figs"><div>${pose(g.a)}<span>${g.la}</span></div><div>${pose(g.b)}<span>${g.lb}</span></div></div>` : "";
+}
+function announce(t) { const l = P && pq("#pl-live"); if (l) l.textContent = t; }
+
+function tick() {
+  if (!P || P.finished) return;
+  const now = performance.now(), dt = Math.min(now - P.last, 600000); P.last = now;
+  if (P.paused) return;
+  if (P.cd > 0) {
+    P.cd -= dt; const sec = Math.ceil(Math.max(P.cd, 0) / 1000);
+    if (P.cd <= 0) { P.cd = 0; goBeep(); const cd = pq("#pl-cd"); cd.textContent = "Go!"; announce("Go!"); setTimeout(() => { P && cd.classList.add("off"); }, 700); P.started = true; enterStep(0); }
+    else if (sec !== P.cdSec) { P.cdSec = sec; pq("#pl-cd").textContent = sec; pq("#pl-big").textContent = sec; announce(String(sec)); beep(); }
+    return;
+  }
+  const s = P.steps[P.i]; P.stepMs += dt; P.totalMs += dt; P.kcal += stepRate(s) * ((lastWeight() || 70) / 70) * dt / 60000;
+  if (s.type === "rest" || s.type === "time") {
+    const rem = s.secs * 1000 - P.stepMs, sec = Math.ceil(rem / 1000);
+    if (rem <= 0) { plNext(true); return; }
+    if (sec !== P.lastSec) { P.lastSec = sec; if (sec <= 3) beep(); }
+  }
+  paintTime();
+}
+function paintTime() {
+  const s = P.steps[P.i], big = pq("#pl-big");
+  if (s.type === "rest" || s.type === "time") big.textContent = fmtT(s.secs - P.stepMs / 1000);
+  paintSeg();
+}
+function paintSeg() {
+  const s = P.steps[P.i], cur = s.seg, idxs = P.steps.map((x, j) => (x.seg === cur ? j : -1)).filter(j => j >= 0);
+  const f = s.secs ? Math.min(1, P.stepMs / (s.secs * 1000)) : 0, frac = (P.i - idxs[0] + f) / idxs.length;
+  [...pq("#pl-seg").children].forEach((c, k) => { c.className = k < cur ? "d" : k === cur ? "c" : ""; c.firstChild.style.width = k < cur ? "100%" : k === cur ? Math.round(frac * 100) + "%" : "0"; });
+  pq("#pl-seg").setAttribute("aria-valuenow", cur);
+}
+function paintCtl() {
+  if (!P) return; const pb = pq("#pl-pause"), mb = pq("#pl-mute"), av = pq("#pl-av");
+  pb.innerHTML = pic(P.paused ? "play" : "pause"); pb.setAttribute("aria-label", P.paused ? "Resume workout" : "Pause workout");
+  mb.innerHTML = pic(S.mute ? "mute" : "vol"); mb.setAttribute("aria-label", S.mute ? "Unmute sound" : "Mute sound"); mb.setAttribute("aria-pressed", !!S.mute);
+  av.textContent = avGlyph(); av.setAttribute("aria-label", "Coach character: " + ((S.avatar || "f") === "m" ? "Male" : "Female") + ". Tap to switch");
+  P.el.classList.toggle("paused", P.paused);
+}
+function paint() {
+  const s = P.steps[P.i], rest = s.type === "rest", d = pq("#pl-done"), big = pq("#pl-big");
+  P.el.dataset.kind = s.type;
+  pq("#pl-name").textContent = rest ? "Rest" : s.name;
+  const sub = rest ? "Up next: " + (s.nextName || "") : [s.label, s.type === "reps" ? `${s.reps} ${s.unit || "reps"}` : ""].filter(Boolean).join(" · ") || `Exercise ${s.seg + 1} of ${P.segCount}`;
+  pq("#pl-sub").textContent = sub;
+  big.classList.toggle("sm", s.type === "free");
+  big.textContent = s.type === "reps" ? s.reps : s.type === "free" ? "At your pace" : fmtT(s.secs);
+  d.hidden = !(s.type === "reps" || s.type === "free"); d.textContent = "Done";
+  const nx = P.steps.slice(P.i + 1).find(x => x.type !== "rest"), fut = rest ? null : nx;
+  pq("#pl-next").textContent = rest ? "Get ready" : fut ? "Next: " + fut.name + (fut.name === s.name && fut.label ? " · " + fut.label : "") : "Last one — finish strong";
+  const det = pq("#pl-det"); det.setAttribute("aria-disabled", s.key ? "false" : "true");
+  announce((rest ? "Rest. " : s.name + ". ") + sub + (s.secs ? ". " + s.secs + " seconds" : ""));
+  paintSeg();
+}
+function enterStep(i) {
+  P.i = i; P.stepMs = 0; P.lastSec = null; const s = P.steps[i];
+  if (s.key !== P.curKey) { P.curKey = s.key || null; P.v && P.v.setExercise(P.curKey); fallbackFig(P.curKey); }
+  paint(); chime(); try { navigator.vibrate && navigator.vibrate(i ? [60, 40, 60] : 120); } catch {}
+}
+function plNext(done) {
+  if (!P || P.cd > 0 || P.finished) return;
+  if (done && P.steps[P.i].type !== "rest") P.doneCnt++;
+  if (P.i + 1 >= P.steps.length) return endSession();
+  enterStep(P.i + 1);
+}
+function plPrev() {
+  if (!P || P.cd > 0 || P.finished) return;
+  if (P.stepMs > 3000 || P.i === 0) { enterStep(P.i); return; }
+  let j = P.i - 1; if (P.steps[j].type === "rest" && j > 0) j--;
+  enterStep(j);
+}
+function setPaused(p) {
+  if (!P || P.finished) return; P.paused = p; P.last = performance.now(); P.v && P.v.pause(p); paintCtl();
+  if (!p) ensureAudio(); announce(p ? "Paused" : "Resumed");
+}
+function setAvatar(g) {
+  S.avatar = g === "m" ? "m" : "f"; save();
+  if (P) { P.v && P.v.setGender(S.avatar); if (P.v && P.curKey) P.v.setExercise(P.curKey); paintCtl(); } else render();
+  if (prev && prev.v) prev.v.setGender(S.avatar), prev.v.setExercise(prev.key);
+}
+function plDetails() {
+  if (!P || P.cd > 0) return; const key = P.steps[P.i].key; if (!key || !GUIDES[key]) return;
+  if (!P.paused) { setPaused(true); P.autoPaused = true; } else P.autoPaused = false;
+  P.detailOpen = true; openSheet(guideHTML(key, effMode())); injectPreview(key);
+}
+function playerSheetClosed() { if (P && P.detailOpen) { P.detailOpen = false; if (P.autoPaused) { P.autoPaused = false; setPaused(false); } } }
+
+function endSession() {
+  P.finished = true; clearInterval(P.timer); try { P.v && P.v.destroy(); } catch {} P.v = null; wake(false); chime();
+  const secs = Math.round(P.totalMs / 1000), kcal = Math.round(P.kcal), total = P.steps.filter(s => s.type !== "rest").length;
+  P.sum = { secs, kcal };
+  P.el.classList.add("sum"); P.el.setAttribute("aria-label", "Workout summary");
+  P.el.innerHTML = `<div class="pl-in pl-sumin"><div class="pl-badge" aria-hidden="true">${pic("check")}</div><h1>Great work, ${esc(S.name || "Champ")}!</h1><p class="mu" style="font-size:17px">You finished ${esc(P.e.title)}. Rest, hydrate and be proud of showing up today.</p>
+  <div class="card tiles"><div><div class="stat">${fmtT(secs)}</div><div class="mu sm">time</div></div><div><div class="stat">${P.doneCnt}/${total}</div><div class="mu sm">steps done</div></div><div><div class="stat">~${kcal}</div><div class="mu sm">kcal</div></div></div>
+  <button class="btn block" data-act="pfinish" id="pl-fin">Finish</button><p class="mu sm" style="text-align:center">Finish ticks off today's workout checklist. Calories are a rough estimate.</p></div>`;
+  const b = $("#pl-fin"); b && b.focus({ preventScroll: true });
+}
+function plFinish() {
+  if (!P || !P.finished) return; const { date, e, sum } = P, L = log(date);
+  e.items.forEach((_, i) => (L.ex[i] = true));
+  S.sessions = S.sessions || []; S.sessions.push({ date, secs: sum.secs, kcal: sum.kcal }); save();
+  teardown(true); buzz(); render(); toast("Workout complete 🎉");
+}
+async function reqClose() {
+  if (!P) return;
+  if (P.finished) return plFinish();
+  if (!P.started) return teardown(true);
+  const was = P.paused; setPaused(true);
+  const r = await ask({ title: "End workout?", desc: "Your progress in this session won't be saved and your checklist stays unchanged.", ok: "End workout", danger: true });
+  if (!P) return; if (r) teardown(true); else if (!was) setPaused(false);
+}
+function teardown(pop) {
+  if (!P) return; const p = P; P = null; clearInterval(p.timer);
+  try { p.v && p.v.destroy(); } catch {}
+  p.el.remove(); wake(false);
+  [$("#app"), $("#nav")].forEach(x => x && (x.inert = false));
+  if (!$("#sheet").classList.contains("show")) document.body.style.overflow = "";
+  if (p.opener && document.contains(p.opener)) try { p.opener.focus({ preventScroll: true }); } catch {}
+  if (pop && history.state && history.state.player) history.back();
+}
+window.addEventListener("popstate", () => {
+  if (P && !(history.state && history.state.player) && !$("#sheet").classList.contains("show")) { try { history.pushState({ player: 1 }, ""); } catch {} reqClose(); }
+});
+
+/* 3D preview card inside the guide sheet */
+let prev = null;
+function killPreview() { if (prev) { const p = prev; prev = null; p.dead = true; try { p.v && p.v.destroy(); } catch {} } }
+async function injectPreview(key) {
+  const root = $("#sheet .sheet-in"), anchor = root && root.querySelector(".figs"); if (!anchor || !GUIDES[key]) return;
+  killPreview();
+  const card = document.createElement("div"); card.className = "card p3d";
+  card.innerHTML = `<div class="row sp wrap" style="gap:8px"><b>3D demo</b>${seg("p3mode", [["3d", "3D"], ["2d", "Diagram"]], "3d", "Preview type")}</div><div class="p3d-stage"><div class="p3d-3d" id="p3d"></div><div class="p3d-msg mu" id="p3dm">Loading 3D…</div></div><div class="p3d-ctl">${seg("p3speed", [["1", "1×"], ["0.5", "0.5×"]], "1", "Speed")}${seg("p3view", [["front", "Front"], ["side", "Side"], ["three", "3/4"]], "", "View")}</div>`;
+  anchor.before(card);
+  const me = prev = { dead: false, v: null, key, mode: "3d", speed: "1", view: "", card };
+  const v = await mount3D(card.querySelector("#p3d"), { gender: S.avatar || "f", autorotate: false });
+  if (me.dead) { v && v.destroy(); return; }
+  const msg = card.querySelector("#p3dm");
+  if (!v) { msg.textContent = "3D preview isn't available on this device — see the diagrams below."; card.classList.add("no3d"); return; }
+  me.v = v; msg.remove(); v.setExercise(key); v.setSpeed(+me.speed);
+  if (me.mode === "2d") v.pause(true);
+}
+function p3set(a, val) {
+  if (!prev) return; const k = { p3mode: "mode", p3speed: "speed", p3view: "view" }[a]; prev[k] = val;
+  prev.card.classList.toggle("is2d", prev.mode === "2d");
+  prev.card.querySelectorAll("[data-act=" + a + "]").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === val));
+  const v = prev.v; if (!v) return;
+  if (a === "p3mode") v.pause(val === "2d"); if (a === "p3speed") v.setSpeed(+val); if (a === "p3view") v.setView(val);
+}
 
 /* ---------- boot ---------- */
 if (S.start) view = clampView(todayStr());
