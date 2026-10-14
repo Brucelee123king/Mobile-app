@@ -307,7 +307,7 @@ function swapHTML() {
   <div class="card"><div class="mu sm">CURRENT${cur.sw ? " · SWAPPED" : ""}</div><b>${esc(cur.t)}</b><div class="mu">${cur.k} kcal</div>
   <div class="row wrap" style="margin-top:10px"><button class="pill" data-act="editmeal">Edit name / calories</button>${cur.sw ? '<button class="pill" data-act="restore">Restore original</button>' : ""}</div></div>
   <div class="card row sp"><span id="rpl">Repeat every ${fmt(d, { weekday: "long" })}</span><button class="sw" role="switch" aria-checked="${!!repeat}" aria-labelledby="rpl" data-act="reptoggle"></button></div>
-  ${mine.length ? `<h2>My foods</h2><div class="card list">${mine.map(m => row(m, "mine", S.foods.indexOf(m))).join("")}</div>` : ""}
+  ${mine.length ? `<h2>My foods</h2><div class="card list">${mine.map(m => row({ t: m.name, k: m.kcal, nv: m.nv }, "mine", S.foods.indexOf(m))).join("")}</div>` : ""}
   <h2>Suggestions</h2><div class="card list">${alts.map(m => row(m, "lib", lib.indexOf(m))).join("")}</div>
   <button class="btn block" data-act="newmeal">+ Create a custom meal</button>`;
 }
@@ -362,7 +362,7 @@ async function act(a, ds) {
     case "ex": { const L = log(view); L.ex[v] = !L.ex[v]; save(); buzz(); return render(); }
     case "swap": return openSwap(ds.id);
     case "reptoggle": swapCtx.repeat = !swapCtx.repeat; return updateSheet(swapHTML());
-    case "pickalt": { const [tag, idx] = v.split(":"); const m = tag === "mine" ? S.foods[+idx] : ALT_MEALS[swapCtx.slot][+idx]; return m && applyMeal(m); }
+    case "pickalt": { const [tag, idx] = v.split(":"); const f = S.foods[+idx], m = tag === "mine" ? f && { t: f.name, k: f.kcal } : ALT_MEALS[swapCtx.slot][+idx]; return m && applyMeal(m); }
     case "restore": { const L = log(swapCtx.d), k = weekKey(), prev = { day: L.swaps && L.swaps[swapCtx.slot], wk: S.weeklySwaps && S.weeklySwaps[k] }, ctx = swapCtx; clearSwap(null); save(); render(); updateSheet(swapHTML()); toast("Original meal restored", () => { swapCtx = ctx; clearSwap(prev); save(); render(); updateSheet(swapHTML()); }); return; }
     case "editmeal": { const ctx = swapCtx, cur = mealsFor(ctx.n, ctx.d)[MEAL_SLOTS.findIndex(x => x.id === ctx.slot)]; const r = await ask({ title: "Edit meal", fields: mealFields(cur.t, cur.k) }); swapCtx = ctx; if (r) applyMeal({ t: r.name, k: r.kcal }); openSheet(swapHTML()); return; }
     case "newmeal": { const ctx = swapCtx; const r = await ask({ title: "Create custom meal", fields: [...mealFields("", ""), { id: "type", label: "Type", type: "select", options: [["veg", "Vegetarian"], ["nv", "Non-veg"]], value: "veg" }, { id: "save", label: "Save to My foods?", type: "select", options: [["yes", "Yes, save for later"], ["no", "No, just this once"]], value: "yes" }], ok: "Use this meal" }); swapCtx = ctx; if (r) { if (r.save === "yes") { S.foods = S.foods || []; S.foods.push({ id: Date.now().toString(36), name: r.name, kcal: +r.kcal, slot: ctx.slot, nv: r.type === "nv" }); } applyMeal({ t: r.name, k: r.kcal }); } openSheet(swapHTML()); return; }

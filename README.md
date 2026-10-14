@@ -26,3 +26,10 @@ Apple-HIG-inspired UI (SF type, grouped cards, translucent tab bar) that is full
 sidebar on desktop/tablet-landscape. Accessibility: 4.5:1 text contrast in light & dark, 44px touch targets, visible focus,
 keyboard + screen-reader support, reduced-motion. Reviewed against the `ui-ux-pro-max` skill checklist
 (imported into `.claude/skills/ui-ux-pro-max`).
+
+## 3D coach characters
+The guided workout player and exercise guides use realistic skinned 3D humans (`assets/Michelle.glb`, `assets/Soldier.glb`,
+Mixamo-rigged models from the three.js examples) rendered with three.js (`vendor/`, MIT). Exercise motion is authored as
+keyframed joint angles in `poses_a.js` / `poses_b.js` and retargeted onto the character skeleton in `scene3d.js`.
+To use your own character, export a Mixamo-rigged `.glb` (bone names `mixamorig:*`) and replace the files in `assets/`.
+Check each model's licence terms before redistributing the app.
