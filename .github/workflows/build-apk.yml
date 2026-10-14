@@ -5,6 +5,9 @@ on:
     branches: [main, "claude/**"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,6 +37,7 @@ jobs:
       - name: Add Android platform and sync
         run: |
           npx cap add android
+          npx capacitor-assets generate --android --assetPath resources
           npx cap sync android
 
       - name: Build release APK (unsigned)
@@ -64,8 +68,32 @@ jobs:
             --out Fit90-release.apk aligned.apk
           "$BT/apksigner" verify --verbose Fit90-release.apk
 
-      - name: Upload signed APK
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk dist/Fit90-unsigned.apk
+          cp Fit90-release.apk dist/Fit90-installable.apk
+          {
+            echo "commit: $GITHUB_SHA"
+            echo "branch: $GITHUB_REF_NAME"
+            echo "built:  $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Fit90-unsigned.apk    = unsigned release build (cannot be installed until signed)"
+            echo "Fit90-installable.apk = same build signed (install this on a phone)"
+          } > dist/BUILD.txt
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Fit90-release-apk
-          path: Fit90-release.apk
+          name: Fit90-apks
+          path: dist/
+
+      - name: Publish APKs to apk-builds branch
+        run: |
+          cd dist
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b apk-builds
+          git add -A
+          git commit -q -m "APK build for ${GITHUB_SHA::7} [skip ci]"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" apk-builds

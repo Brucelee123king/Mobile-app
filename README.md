@@ -5,7 +5,7 @@ weight chart + BMI, streaks, dark mode and water/meal reminders.
 
 ## Get the APK
 1. Push to GitHub → **Actions** → *Build Android APK* (or run it manually via *Run workflow*).
-2. Open the finished run → **Artifacts** → download `Fit90-release-apk` → unzip → `Fit90-release.apk`.
+2. Open the finished run → **Artifacts** → download `Fit90-apks` → unzip.
 3. Copy to your phone and install (allow "install unknown apps").
 
 ## Signing with your own key (recommended)

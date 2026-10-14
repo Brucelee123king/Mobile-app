@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build:web": "rm -rf www && mkdir -p www/icons && cp index.html style.css app.js data.js guides.js manifest.json sw.js www/ && cp icons/icon.svg www/icons/"
+    "build:web": "rm -rf www && mkdir -p www/icons && cp index.html style.css app.js data.js guides.js manifest.json sw.js www/ && cp icons/*.png www/icons/"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/local-notifications": "^6.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
   }
 }
