@@ -1,0 +1,9 @@
+{
+  "name": "Fit 90 – Weight Loss Planner",
+  "short_name": "Fit 90",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4faf6",
+  "theme_color": "#1e9e6a",
+  "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "fit90",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:web": "rm -rf www && mkdir -p www/icons && cp index.html style.css app.js data.js manifest.json sw.js www/ && cp icons/icon.svg www/icons/"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/local-notifications": "^6.1.0"
+  }
+}
