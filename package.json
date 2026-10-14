@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build:web": "rm -rf www && mkdir -p www/icons && cp index.html style.css app.js data.js manifest.json sw.js www/ && cp icons/icon.svg www/icons/"
+    "build:web": "rm -rf www && mkdir -p www/icons && cp index.html style.css app.js data.js guides.js manifest.json sw.js www/ && cp icons/icon.svg www/icons/"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",

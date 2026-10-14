@@ -16,6 +16,7 @@ const mealsFor = n => {
   return base;
 };
 const exFor = n => { const p = Math.min(2, Math.max(0, Math.floor(n / 28))); return EX_WEEK[p][((n % 7) + 7) % 7]; };
+const effMode = () => (S.mode && S.mode !== "auto" ? S.mode : autoMode(S.age || 30));
 const kcalEaten = (d, n) => mealsFor(n).reduce((a, m, i) => a + (log(d).meals[MEAL_SLOTS[i].id] ? m.k : 0), 0);
 const kcalPlan = n => mealsFor(n).reduce((a, m) => a + m.k, 0);
 const pct = (a, b) => Math.min(100, Math.round((a / b) * 100));
@@ -57,15 +58,16 @@ function setup() {
   <label>Your name</label><input id="n" placeholder="Name">
   <label>Current weight (kg)</label><input id="w" type="number" inputmode="decimal">
   <label>Goal weight (kg)</label><input id="g" type="number" inputmode="decimal">
+  <label>Age</label><input id="ag" type="number" inputmode="numeric">
   <label>Height (cm)</label><input id="h" type="number" inputmode="decimal">
   <label>Daily water goal (ml)</label><input id="wg" type="number" value="3000">
   <label>Diet</label><select id="df"><option value="veg">Vegetarian</option><option value="nonveg">Veg + Non-veg</option></select>
   <label>Program start date</label><input id="sd" type="date" value="${iso(new Date())}">
   <button class="btn" style="width:100%" id="go">Start my 90 days</button></div>`;
   $("#go").onclick = () => {
-    const w = +$("#w").value, g = +$("#g").value, h = +$("#h").value;
-    if (!w || !g || !h) return alert("Please enter weight, goal weight and height.");
-    S = { ...S, name: $("#n").value || "Champ", startWeight: w, goalWeight: g, height: h, waterGoal: +$("#wg").value || 3000, diet: $("#df").value, remind: false, start: $("#sd").value, weights: [{ date: $("#sd").value, kg: w }], logs: S.logs || {} };
+    const w = +$("#w").value, g = +$("#g").value, h = +$("#h").value, ag = +$("#ag").value;
+    if (!w || !g || !h || !ag) return alert("Please enter weight, goal weight, height and age.");
+    S = { ...S, name: $("#n").value || "Champ", startWeight: w, goalWeight: g, height: h, age: ag, mode: "auto", waterGoal: +$("#wg").value || 3000, diet: $("#df").value, remind: false, start: $("#sd").value, weights: [{ date: $("#sd").value, kg: w }], logs: S.logs || {} };
     save(); $("#nav").style.display = ""; view = iso(new Date()); render();
   };
 }
@@ -109,10 +111,20 @@ function viewWater(n, d) {
 }
 
 function viewEx(n, d) {
-  const L = log(d), e = exFor(n), ph = PHASES[Math.min(2, Math.max(0, Math.floor(n / 28)))];
-  return `<h1>Workout 🏋️</h1><div class="mu">${ph.name} (${ph.weeks})</div><div class="card"><div class="row sp"><b>${e.title}</b>${e.rest ? '<span class="tag">REST</span>' : ""}</div>` +
-    e.items.map((t, i) => `<div class="item ${L.ex[i] ? "done" : ""}"><div class="b t">${t}</div><button class="chk ${L.ex[i] ? "on" : ""}" data-e="${i}">${L.ex[i] ? "✓" : ""}</button></div>`).join("") + `</div>
-  <div class="mu">Tip: warm up first, stop if you feel pain, and drink water between sets.</div>`;
+  const L = log(d), e = exFor(n), ph = PHASES[Math.min(2, Math.max(0, Math.floor(n / 28)))], mode = effMode(), M = MODES[mode];
+  return `<h1>Workout 🏋️</h1><div class="mu">${ph.name} (${ph.weeks})</div>
+  <div class="card"><div class="row sp"><div><b>Exercise mode: ${M.name}</b><div class="mu">${S.mode === "auto" || !S.mode ? "Auto for age " + S.age : "Chosen by you"} · ${M.note}</div></div></div>
+  <div class="seg">${Object.keys(MODES).map(k => `<button data-mode="${k}" class="${k === mode ? "on" : ""}">${MODES[k].name}</button>`).join("")}</div></div>
+  <div class="card"><div class="row sp"><b>${e.title}</b>${e.rest ? '<span class="tag">REST</span>' : ""}</div>` +
+    e.items.map((t, i) => { const k = guideKey(t); return `<div class="item ${L.ex[i] ? "done" : ""}"><div class="b t">${adaptText(t, mode)}${k ? `<div><button class="how" data-x="${k}">▶ How to do it</button></div>` : ""}</div><button class="chk ${L.ex[i] ? "on" : ""}" data-e="${i}">${L.ex[i] ? "✓" : ""}</button></div>`; }).join("") + `</div>
+  <div class="mu" style="margin:0 4px">Tap "How to do it" for a step-by-step diagram with tips for women. Warm up first and stop if you feel pain.</div>`;
+}
+
+function openGuide(k) {
+  let o = $("#sheet"); if (!o) { o = document.createElement("div"); o.id = "sheet"; document.body.appendChild(o); }
+  o.innerHTML = `<div class="sheet-in">${guideHTML(k, effMode())}</div>`; o.classList.add("show"); document.body.style.overflow = "hidden";
+  $("#gx").onclick = () => { o.classList.remove("show"); document.body.style.overflow = ""; };
+  o.onclick = e => { if (e.target === o) $("#gx").click(); };
 }
 
 function chart() {
@@ -133,14 +145,17 @@ function viewProgress() {
   <div class="card"><b>Weight trend</b>${chart()}</div>
   <div class="card"><label>Log today's weight (kg)</label><div class="row"><input id="lw" type="number" inputmode="decimal" style="margin:0"><button class="btn" id="addw">Save</button></div></div>
   <div class="card"><div class="row sp"><b>Reminders (water + meals)</b><button class="btn alt" id="rm">${S.remind ? "On" : "Off"}</button></div>
+  <div class="row sp" style="margin-top:10px"><b>Age</b><button class="btn alt" id="ag2">${S.age || "-"}</button></div>
   <div class="row sp" style="margin-top:10px"><b>Diet</b><button class="btn alt" id="dt">${S.diet === "nonveg" ? "Veg + Non-veg" : "Vegetarian"}</button></div>
   <div class="row sp" style="margin-top:10px"><b>Dark mode</b><button class="btn alt" id="dm">${S.dark ? "On" : "Off"}</button></div>
   <div class="row sp" style="margin-top:10px"><b>Daily water goal</b><button class="btn alt" id="wg">${S.waterGoal} ml</button></div>
   <div class="row sp" style="margin-top:10px"><b>Reset all data</b><button class="btn alt" id="rs">Reset</button></div></div>`;
 }
 
+let lastKey = "";
 function render() {
   if (!S.start) return setup();
+  const y = window.scrollY, key = tab + view;
   applyTheme();
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
   const n = dayIdx(view);
@@ -152,15 +167,19 @@ function render() {
   document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { const L = log(view); L.water = Math.max(0, L.water + +b.dataset.w); save(); render(); });
   document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { const L = log(view); L.meals[b.dataset.m] = !L.meals[b.dataset.m]; save(); render(); });
   document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { const L = log(view); L.ex[b.dataset.e] = !L.ex[b.dataset.e]; save(); render(); });
+  document.querySelectorAll("[data-x]").forEach(b => b.onclick = () => openGuide(b.dataset.x));
+  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; save(); render(); });
   if (tab === "progress") {
     $("#addw").onclick = () => { const v = +$("#lw").value; if (!v) return; const t = iso(new Date()); S.weights = S.weights.filter(x => x.date !== t).concat({ date: t, kg: v }).sort((a, b) => a.date.localeCompare(b.date)); save(); render(); };
     $("#rm").onclick = async () => { S.remind = !S.remind; save(); await setReminders(S.remind); render(); };
     $("#dt").onclick = () => { S.diet = S.diet === "nonveg" ? "veg" : "nonveg"; save(); render(); };
+    $("#ag2").onclick = () => { const v = +prompt("Your age", S.age || ""); if (v > 0) { S.age = v; save(); render(); } };
     $("#dm").onclick = () => { S.dark = !S.dark; save(); render(); };
     $("#wg").onclick = () => { const v = +prompt("Daily water goal (ml)", S.waterGoal); if (v > 0) { S.waterGoal = v; save(); render(); } };
     $("#rs").onclick = () => { if (confirm("Delete all data and start over?")) { S = {}; save(); render(); } };
   }
-  window.scrollTo(0, 0);
+  window.scrollTo(0, key === lastKey ? y : 0);
+  lastKey = key;
 }
 
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
