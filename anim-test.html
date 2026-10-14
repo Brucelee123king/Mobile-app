@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>anim test</title>
+<style>body{margin:0;background:#e9edf2;font:12px sans-serif}#g{display:grid;grid-template-columns:repeat(var(--c,4),1fr);gap:4px;padding:4px}.c{position:relative;height:var(--h,260px);background:#fff;border-radius:8px;overflow:hidden}.c b{position:absolute;left:6px;top:4px;z-index:2}</style>
+<div id="g"></div>
+<script src="poses_a.js"></script><script src="poses_b.js"></script>
+<script type="module" src="scene3d.js"></script>
+<script>
+// usage: anim-test.html?keys=squat,lunge&phases=0,.25,.5,.75&g=f&az=30&cols=4&h=260
+const q = new URLSearchParams(location.search);
+window.addEventListener("fit3d-ready", () => {
+  const keys = (q.get("keys") || Object.keys(FIT_ANIMS).join(",")).split(",").filter(Boolean), phases = (q.get("phases") || "0,0.5").split(",").map(Number);
+  document.documentElement.style.setProperty("--c", q.get("cols") || phases.length); document.documentElement.style.setProperty("--h", (q.get("h") || 260) + "px");
+  const g = document.getElementById("g");
+  for (const k of keys) for (const ph of phases) {
+    const d = document.createElement("div"); d.className = "c"; d.innerHTML = `<b>${k} @${ph}</b>`; g.appendChild(d);
+    const m = Fit3D.mount(d, { manual: true, preserve: true, gender: q.get("g") || "f", az: q.get("az") ? +q.get("az") : undefined, el: q.get("el") ? +q.get("el") : undefined, dist: q.get("dist") ? +q.get("dist") : undefined });
+    m.setExercise(k); if (q.get("az")) m.setView(null), m.renderAt; m.renderAt(ph);
+  }
+  document.title = "done";
+});
+</script>

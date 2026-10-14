@@ -18,16 +18,20 @@ let tab = "today", view = todayStr(), lastKey = "", draft = {}, step = 0, toastU
 /* ---------- data helpers ---------- */
 const log = d => { S.logs = S.logs || {}; return S.logs[d] || (S.logs[d] = { water: 0, meals: {}, ex: {} }); };
 const readLog = d => (S.logs || {})[d] || { water: 0, meals: {}, ex: {} };
-const mealsFor = n => {
+const mealsFor = (n, d) => {
   const i = ((n % 7) + 7) % 7, base = MEAL_DAYS[i].slice();
   if (S.diet === "nonveg") Object.entries(NONVEG_SWAPS[i] || {}).forEach(([k, v]) => (base[+k] = v));
-  return base;
+  const L = d ? readLog(d) : null;
+  return base.map((m, j) => {
+    const id = MEAL_SLOTS[j].id, day = L && L.swaps && L.swaps[id], wk = S.weeklySwaps && S.weeklySwaps[i + "-" + id], o = day || wk;
+    return o ? { t: o.t, k: o.k, sw: day ? "day" : "week" } : m;
+  });
 };
 const phaseIdx = n => Math.min(2, Math.max(0, Math.floor(n / 28)));
 const exFor = n => EX_WEEK[phaseIdx(n)][((n % 7) + 7) % 7];
 const effMode = () => (S.mode && S.mode !== "auto" ? S.mode : autoMode(S.age || 30));
-const kcalPlan = n => mealsFor(n).reduce((a, m) => a + m.k, 0);
-const kcalEaten = (d, n) => { const L = readLog(d); return mealsFor(n).reduce((a, m, i) => a + (L.meals[MEAL_SLOTS[i].id] ? m.k : 0), 0); };
+const kcalPlan = (n, d) => mealsFor(n, d).reduce((a, m) => a + m.k, 0);
+const kcalEaten = (d, n) => { const L = readLog(d); return mealsFor(n, d).reduce((a, m, i) => a + (L.meals[MEAL_SLOTS[i].id] ? m.k : 0), 0); };
 const dayScore = d => {
   const n = dayIdx(d), L = readLog(d), e = exFor(n);
   const done = MEAL_SLOTS.filter(m => L.meals[m.id]).length + e.items.filter((_, i) => L.ex[i]).length + (L.water >= S.waterGoal ? 1 : 0);
@@ -51,10 +55,10 @@ mq && mq.addEventListener && mq.addEventListener("change", applyTheme);
 /* ---------- sheet, dialogs, toast ---------- */
 let sheetResolve = null, lastFocus = null, pendingVal = null;
 function openSheet(html, resolve) {
-  const o = $("#sheet"); lastFocus = document.activeElement; sheetResolve = resolve || null;
+  const o = $("#sheet"), was = o.classList.contains("show"); if (!was) lastFocus = document.activeElement; sheetResolve = resolve || null;
   o.innerHTML = `<div class="sheet-in" tabindex="-1"><div class="grab"></div>${html}</div>`;
   o.classList.add("show"); o.setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden";
-  try { history.pushState({ sheet: 1 }, ""); } catch {}
+  if (!was) { try { history.pushState({ sheet: 1 }, ""); } catch {} }
   const f = o.querySelector("input") || o.querySelector("[data-act=close]") || o.firstChild; f && f.focus && f.focus({ preventScroll: true });
   o.firstChild.scrollTop = 0;
 }
@@ -71,7 +75,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#sheet"
 function ask({ title, desc, fields = [], ok = "Save", danger = false }) {
   return new Promise(res => {
     askDef = fields;
-    openSheet(`<h1 style="font-size:24px">${title}</h1>${desc ? `<p class="mu">${desc}</p>` : ""}<form id="af" novalidate>${fields.map(f => `<label for="f_${f.id}">${f.label}</label><input id="f_${f.id}" name="${f.id}" type="${f.type || "text"}" inputmode="${f.mode || "text"}" value="${f.value ?? ""}" ${f.step ? `step="${f.step}"` : ""} autocomplete="off">`).join("")}<div class="err" id="aerr" aria-live="polite"></div><div class="row" style="margin-top:12px"><button type="button" class="btn alt grow" data-act="close">Cancel</button><button class="btn grow ${danger ? "danger" : ""}" type="submit">${ok}</button></div></form>`, res);
+    openSheet(`<h1 style="font-size:24px">${title}</h1>${desc ? `<p class="mu">${desc}</p>` : ""}<form id="af" novalidate>${fields.map(f => `<label for="f_${f.id}">${f.label}</label>${f.type === "select" ? `<select id="f_${f.id}" name="${f.id}">${f.options.map(([v, t]) => `<option value="${v}" ${String(v) === String(f.value) ? "selected" : ""}>${t}</option>`).join("")}</select>` : `<input id="f_${f.id}" name="${f.id}" type="${f.type || "text"}" inputmode="${f.mode || "text"}" value="${esc(f.value ?? "")}" ${f.step ? `step="${f.step}"` : ""} ${f.max ? `maxlength="${f.max}"` : ""} autocomplete="off">`}`).join("")}<div class="err" id="aerr" aria-live="polite"></div><div class="row" style="margin-top:12px"><button type="button" class="btn alt grow" data-act="close">Cancel</button><button class="btn grow ${danger ? "danger" : ""}" type="submit">${ok}</button></div></form>`, res);
   });
 }
 let tt;
@@ -140,31 +144,32 @@ function dayNav(n) {
 function viewToday(n, d) {
   const L = readLog(d), ex = exFor(n), ph = PHASES[phaseIdx(n)], isToday = d === todayStr();
   const mDone = MEAL_SLOTS.filter(m => L.meals[m.id]).length, eDone = ex.items.filter((_, i) => L.ex[i]).length;
-  const overall = dayScore(d), M = mealsFor(n);
+  const overall = dayScore(d), M = mealsFor(n, d);
   let next = "";
   if (mDone === 6) next = `<div class="card"><b>All meals logged 🎉</b><div class="mu">Great job staying on plan today.</div></div>`;
   else {
     const times = [390, 510, 660, 810, 1020, 1170], now = new Date(), mins = now.getHours() * 60 + now.getMinutes();
     const open = MEAL_SLOTS.map((_, i) => i).filter(i => !L.meals[MEAL_SLOTS[i].id]);
     const i = isToday ? (open.find(k => times[k] >= mins - 60) ?? open[0]) : open[0], s = MEAL_SLOTS[i];
-    next = `<div class="card"><div class="mu sm">${isToday ? "UP NEXT" : "NOT YET LOGGED"}</div><div class="row" style="margin-top:6px"><span class="bigic-wrap">${ico(SLOT_ICON[s.id], "bigic")}</span><div class="grow"><b>${s.name} · ${s.time}</b><div class="mu">${esc(M[i].t)} · ${M[i].k} kcal</div></div></div><button class="btn alt block" style="margin-top:12px" data-act="meal" data-id="${s.id}">Mark as eaten</button></div>`;
+    next = `<div class="card"><div class="mu sm">${isToday ? "UP NEXT" : "NOT YET LOGGED"}</div><div class="row" style="margin-top:6px"><span class="bigic-wrap">${ico(SLOT_ICON[s.id], "bigic")}</span><div class="grow"><b>${s.name} · ${s.time}</b><div class="mu">${esc(M[i].t)} · ${M[i].k} kcal</div></div></div><div class="row" style="margin-top:12px"><button class="btn alt grow" data-act="meal" data-id="${s.id}">Mark as eaten</button><button class="btn alt" data-act="swap" data-id="${s.id}">Swap</button></div></div>`;
   }
   const pre = dayIdx(todayStr()) < 0 ? `<div class="card"><b>Your program starts ${fmt(S.start)}</b><div class="mu">You can preview the plan until then.</div></div>` : "";
   return `<h1>${greeting()}, ${esc(S.name)}</h1><p class="mu">${ph.name} · ${ph.goal}</p>${dayNav(n)}${pre}
   <div class="card row" style="gap:16px">${ring(overall, "var(--pr)", 120, `<b>${overall}%</b><span class="mu sm">done</span>`)}<div class="grow"><b>${isToday ? "Today's progress" : "Day progress"}</b><div class="mu">${mDone}/6 meals<br>${L.water}/${S.waterGoal} ml water<br>${eDone}/${ex.items.length} exercises</div></div></div>
   <div class="cols">${next}
   <div class="card"><div class="row sp"><b>${ico("drop", "hi w")}Water</b><span class="mu">${L.water} / ${S.waterGoal} ml</span></div>${bar(pct(L.water, S.waterGoal), "w")}<div class="row" style="margin-top:12px"><button class="wbtn" data-act="water" data-v="250">+250 ml</button><button class="wbtn alt" data-act="water" data-v="500">+500 ml</button></div></div>
-  <div class="card"><div class="row sp"><b>${ico("flame", "hi o")}Calories</b><span class="mu">${kcalEaten(d, n)} / ${kcalPlan(n)} kcal</span></div>${bar(pct(kcalEaten(d, n), kcalPlan(n)))}</div>
+  <div class="card"><div class="row sp"><b>${ico("flame", "hi o")}Calories</b><span class="mu">${kcalEaten(d, n)} / ${kcalPlan(n, d)} kcal</span></div>${bar(pct(kcalEaten(d, n), kcalPlan(n, d)))}</div>
   <button class="card tap" data-act="goto" data-v="exercise"><div class="row sp"><b>${ico("dumbbell", "hi")}${esc(ex.title)}</b><span class="mu">${ex.rest ? "Rest day" : eDone + "/" + ex.items.length}</span></div><div class="mu" style="margin-top:4px">${MODES[effMode()].name} mode · tap for guided exercises</div></button>
   <div class="card tiles span2"><div><div class="stat">${streak()}</div><div class="mu sm">day streak</div></div><div><div class="stat">${weekScore()}%</div><div class="mu sm">7-day score</div></div><div><div class="stat">${lastWeight()}</div><div class="mu sm">kg now</div></div></div>
   <div class="card span2"><b>${ico("bulb", "hi o")}Tip of the day</b><div class="mu" style="font-size:15px;margin-top:4px">${TIPS[((n % TIPS.length) + TIPS.length) % TIPS.length]}</div></div></div>`;
 }
 
 function viewMeals(n, d) {
-  const L = readLog(d), M = mealsFor(n), mDone = MEAL_SLOTS.filter(m => L.meals[m.id]).length;
-  return `<h1>Meal Plan</h1><p class="mu">${S.diet === "nonveg" ? "Veg + non-veg" : "Vegetarian"} · ${kcalPlan(n)} kcal planned</p>${dayNav(n)}
+  const L = readLog(d), M = mealsFor(n, d), mDone = MEAL_SLOTS.filter(m => L.meals[m.id]).length;
+  return `<h1>Meal Plan</h1><p class="mu">${S.diet === "nonveg" ? "Veg + non-veg" : "Vegetarian"} · ${kcalPlan(n, d)} kcal planned</p>${dayNav(n)}
   <div class="card"><div class="row sp"><b>${mDone}/6 meals</b><span class="mu">${kcalEaten(d, n)} kcal eaten</span></div>${bar(pct(mDone, 6))}</div>
-  <div class="card">${MEAL_SLOTS.map((s, i) => `<button class="item ${i === 0 ? "first" : ""} ${L.meals[s.id] ? "done on" : ""}" data-act="meal" data-id="${s.id}" role="checkbox" aria-checked="${!!L.meals[s.id]}"><span class="ic" aria-hidden="true">${ico(SLOT_ICON[s.id])}</span><span class="b"><b>${s.name} <span class="mu">· ${s.time}</span></b><span class="t">${esc(M[i].t)}</span><span class="mu sm" style="display:block">${M[i].k} kcal</span></span><span class="chk" aria-hidden="true">${L.meals[s.id] ? "✓" : ""}</span></button>`).join("")}</div>`;
+  <div class="row sp wrap" style="margin:-4px 2px 0"><span class="mu sm">Tap a meal to tick it · use Swap to change it</span><button class="pill" data-act="foods">My foods</button></div>
+  <div class="card">${MEAL_SLOTS.map((s, i) => `<div class="item ${i === 0 ? "first" : ""} ${L.meals[s.id] ? "done on" : ""}" data-act="meal" data-id="${s.id}"><span class="ic" aria-hidden="true">${ico(SLOT_ICON[s.id])}</span><span class="b"><b>${s.name} <span class="mu">· ${s.time}</span>${M[i].sw ? ' <span class="tag">Swapped</span>' : ""}</b><span class="t">${esc(M[i].t)}</span><span class="mu sm" style="display:block">${M[i].k} kcal</span><button class="how" data-act="swap" data-id="${s.id}" aria-label="Swap ${s.name}">⇄ Swap</button></span><button class="chkb" data-act="meal" data-id="${s.id}" role="checkbox" aria-checked="${!!L.meals[s.id]}" aria-label="Mark ${s.name} as eaten"><span class="chk" aria-hidden="true">${L.meals[s.id] ? "✓" : ""}</span></button></div>`).join("")}</div>`;
 }
 
 function viewWater(n, d) {
@@ -216,6 +221,7 @@ function viewProgress() {
   <div class="card list"><div class="li"><span>Appearance</span></div><div style="padding-bottom:8px">${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]], th, "Appearance")}</div>
   <div class="li"><span>Diet</span></div><div style="padding-bottom:8px">${seg("diet", [["veg", "Vegetarian"], ["nonveg", "Veg + Non-veg"]], S.diet || "veg", "Diet")}</div>
   <div class="li"><span id="rl">Reminders (water + meals)</span><button class="sw" role="switch" aria-checked="${!!S.remind}" aria-labelledby="rl" data-act="remind"></button></div>
+  <button class="li btnrow" data-act="foods"><span>My foods</span><span class="v">${(S.foods || []).length}</span></button>
   <button class="li btnrow" data-act="age"><span>Age</span><span class="v">${S.age || "-"}</span></button>
   <button class="li btnrow" data-act="wgoal"><span>Daily water goal</span><span class="v">${S.waterGoal} ml</span></button>
   <button class="li btnrow" data-act="reset"><span style="color:var(--rd)">Reset all data</span></button></div>
@@ -282,6 +288,55 @@ function render() {
   window.scrollTo(0, same ? y : 0); lastKey = key;
 }
 
+/* ---------- meal swap + custom foods ---------- */
+let swapCtx = null;
+const SLOT_OPTS = [["any", "Any meal"], ...MEAL_SLOTS.map(s => [s.id, s.name])];
+const slotName = id => (MEAL_SLOTS.find(s => s.id === id) || { name: "Any meal" }).name;
+const foodsFor = id => (S.foods || []).filter(f => (f.slot === "any" || f.slot === id) && (S.diet === "nonveg" || !f.nv));
+const altsFor = id => (ALT_MEALS[id] || []).filter(a => S.diet === "nonveg" || !a.nv);
+const weekKey = () => (((swapCtx.n % 7) + 7) % 7) + "-" + swapCtx.slot;
+function updateSheet(html) { const o = $("#sheet .sheet-in"); if (!o || !$("#sheet").classList.contains("show")) return; const y = o.scrollTop; o.innerHTML = `<div class="grab"></div>${html}`; o.scrollTop = y; }
+function swapHTML() {
+  const { slot, n, d, repeat } = swapCtx, i = MEAL_SLOTS.findIndex(s => s.id === slot), cur = mealsFor(n, d)[i], s = MEAL_SLOTS[i];
+  const row = (m, tag, idx) => { const diff = m.k - cur.k; return `<button class="opt" data-act="pickalt" data-v="${tag}:${idx}"><span class="b"><b>${esc(m.t)}</b><span class="mu sm">${m.k} kcal · ${diff === 0 ? "same calories" : (diff > 0 ? "+" : "−") + Math.abs(diff) + " vs current"}${m.nv ? " · non-veg" : ""}</span></span><span class="mu" aria-hidden="true">Use</span></button>`; };
+  const mine = foodsFor(slot), lib = ALT_MEALS[slot] || [], alts = altsFor(slot).filter(a => a.t !== cur.t);
+  return `<div class="row sp"><h1 style="font-size:24px;margin:0">Swap ${s.name}</h1><button class="btn alt" data-act="close">Done</button></div>
+  <div class="card"><div class="mu sm">CURRENT${cur.sw ? " · SWAPPED" : ""}</div><b>${esc(cur.t)}</b><div class="mu">${cur.k} kcal</div>
+  <div class="row wrap" style="margin-top:10px"><button class="pill" data-act="editmeal">Edit name / calories</button>${cur.sw ? '<button class="pill" data-act="restore">Restore original</button>' : ""}</div></div>
+  <div class="card row sp"><span id="rpl">Repeat every ${fmt(d, { weekday: "long" })}</span><button class="sw" role="switch" aria-checked="${!!repeat}" aria-labelledby="rpl" data-act="reptoggle"></button></div>
+  ${mine.length ? `<h2>My foods</h2><div class="card list">${mine.map(m => row(m, "mine", S.foods.indexOf(m))).join("")}</div>` : ""}
+  <h2>Suggestions</h2><div class="card list">${alts.map(m => row(m, "lib", lib.indexOf(m))).join("")}</div>
+  <button class="btn block" data-act="newmeal">+ Create a custom meal</button>`;
+}
+function openSwap(slot) { swapCtx = { slot, n: dayIdx(view), d: view, repeat: false }; openSheet(swapHTML()); }
+function clearSwap(prev) {
+  const L = log(swapCtx.d), k = weekKey(); L.swaps = L.swaps || {}; S.weeklySwaps = S.weeklySwaps || {};
+  if (prev && prev.day) L.swaps[swapCtx.slot] = prev.day; else delete L.swaps[swapCtx.slot];
+  if (prev && prev.wk) S.weeklySwaps[k] = prev.wk; else delete S.weeklySwaps[k];
+}
+function applyMeal(m) {
+  const L = log(swapCtx.d), k = weekKey(), prev = { day: L.swaps && L.swaps[swapCtx.slot], wk: S.weeklySwaps && S.weeklySwaps[k] }, meal = { t: m.t, k: +m.k };
+  if (swapCtx.repeat) { S.weeklySwaps = S.weeklySwaps || {}; S.weeklySwaps[k] = meal; if (L.swaps) delete L.swaps[swapCtx.slot]; }
+  else { L.swaps = L.swaps || {}; L.swaps[swapCtx.slot] = meal; }
+  save(); buzz(); render(); updateSheet(swapHTML());
+  const ctx = swapCtx; toast("Meal swapped", () => { swapCtx = ctx; clearSwap(prev); save(); render(); updateSheet(swapHTML()); });
+}
+const mealFields = (t, k) => [{ id: "name", label: "Meal / food name", value: t, max: 80, check: x => (x ? "" : "Please enter a name.") }, { id: "kcal", label: "Calories (kcal)", type: "number", mode: "numeric", value: k, check: x => (x !== "" && +x >= 0 && +x <= 2500 ? "" : "Enter calories between 0 and 2500.") }];
+const foodFields = f => [...mealFields(f ? f.name : "", f ? f.kcal : ""), { id: "slot", label: "Best for", type: "select", options: SLOT_OPTS, value: f ? f.slot : "any" }, { id: "type", label: "Type", type: "select", options: [["veg", "Vegetarian"], ["nv", "Non-veg (egg, chicken, fish)"]], value: f && f.nv ? "nv" : "veg" }];
+function foodsHTML() {
+  const f = S.foods || [];
+  return `<div class="row sp"><h1 style="font-size:24px;margin:0">My foods</h1><button class="btn alt" data-act="close">Done</button></div><p class="mu">Save your own meals and snacks, then pick them when you swap a meal.</p>
+  <button class="btn block" data-act="foodadd">+ Add food</button>
+  ${f.length ? `<div class="card list" style="margin-top:12px">${f.map(x => `<div class="li"><span class="b"><b>${esc(x.name)}</b><span class="mu sm" style="display:block">${x.kcal} kcal · ${slotName(x.slot)} · ${x.nv ? "Non-veg" : "Veg"}</span></span><span class="row"><button class="pill" data-act="foodedit" data-v="${x.id}" aria-label="Edit ${esc(x.name)}">Edit</button><button class="pill" data-act="fooddel" data-v="${x.id}" aria-label="Delete ${esc(x.name)}">Delete</button></span></div>`).join("")}</div>` : `<div class="card"><p class="mu" style="text-align:center;margin:8px 0">No foods yet.<br>Add favourites like “Poha with peanuts”.</p></div>`}`;
+}
+const openFoods = () => openSheet(foodsHTML());
+async function editFood(id) {
+  const ex = id ? (S.foods || []).find(x => x.id === id) : null;
+  const r = await ask({ title: ex ? "Edit food" : "Add food", fields: foodFields(ex), ok: ex ? "Save" : "Add" });
+  if (r) { const item = { id: ex ? ex.id : Date.now().toString(36), name: r.name, kcal: +r.kcal, slot: r.slot, nv: r.type === "nv" }; S.foods = S.foods || []; if (ex) S.foods[S.foods.indexOf(ex)] = item; else S.foods.push(item); save(); render(); toast(ex ? "Food updated" : "Food added"); }
+  openFoods();
+}
+
 /* ---------- actions ---------- */
 const setWater = (v, silent) => {
   const L = log(view), was = L.water; L.water = Math.max(0, L.water + v); const delta = L.water - was; save(); buzz(); render();
@@ -302,6 +357,18 @@ async function act(a, ds) {
     case "wcustom": { const r = await ask({ title: "Add water", desc: "Enter millilitres. Use a negative number to remove.", fields: [{ id: "ml", label: "Amount (ml)", type: "number", mode: "numeric", value: 330, check: x => (x && Math.abs(+x) <= 3000 ? "" : "Enter an amount up to 3000 ml.") }], ok: "Add" }); if (r) setWater(+r.ml); return; }
     case "meal": { const L = log(view); L.meals[ds.id] = !L.meals[ds.id]; save(); buzz(); return render(); }
     case "ex": { const L = log(view); L.ex[v] = !L.ex[v]; save(); buzz(); return render(); }
+    case "swap": return openSwap(ds.id);
+    case "reptoggle": swapCtx.repeat = !swapCtx.repeat; return updateSheet(swapHTML());
+    case "pickalt": { const [tag, idx] = v.split(":"); const m = tag === "mine" ? S.foods[+idx] : ALT_MEALS[swapCtx.slot][+idx]; return m && applyMeal(m); }
+    case "restore": { const L = log(swapCtx.d), k = weekKey(), prev = { day: L.swaps && L.swaps[swapCtx.slot], wk: S.weeklySwaps && S.weeklySwaps[k] }, ctx = swapCtx; clearSwap(null); save(); render(); updateSheet(swapHTML()); toast("Original meal restored", () => { swapCtx = ctx; clearSwap(prev); save(); render(); updateSheet(swapHTML()); }); return; }
+    case "editmeal": { const ctx = swapCtx, cur = mealsFor(ctx.n, ctx.d)[MEAL_SLOTS.findIndex(x => x.id === ctx.slot)]; const r = await ask({ title: "Edit meal", fields: mealFields(cur.t, cur.k) }); swapCtx = ctx; if (r) applyMeal({ t: r.name, k: r.kcal }); openSheet(swapHTML()); return; }
+    case "newmeal": { const ctx = swapCtx; const r = await ask({ title: "Create custom meal", fields: [...mealFields("", ""), { id: "type", label: "Type", type: "select", options: [["veg", "Vegetarian"], ["nv", "Non-veg"]], value: "veg" }, { id: "save", label: "Save to My foods?", type: "select", options: [["yes", "Yes, save for later"], ["no", "No, just this once"]], value: "yes" }], ok: "Use this meal" }); swapCtx = ctx; if (r) { if (r.save === "yes") { S.foods = S.foods || []; S.foods.push({ id: Date.now().toString(36), name: r.name, kcal: +r.kcal, slot: ctx.slot, nv: r.type === "nv" }); } applyMeal({ t: r.name, k: r.kcal }); } openSheet(swapHTML()); return; }
+    case "foods": return openFoods();
+    case "foodadd": return editFood(null);
+    case "foodedit": return editFood(v);
+    case "fooddel": { const x = (S.foods || []).find(f => f.id === v), r = await ask({ title: "Delete food?", desc: "“" + (x ? x.name : "") + "” will be removed from My foods. Meals you already swapped to stay as they are.", ok: "Delete", danger: true }); if (r) { S.foods = S.foods.filter(f => f.id !== v); save(); render(); } openFoods(); return; }
+    case "play": { const f = $("#vframe"); if (f) f.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${v}?autoplay=1&rel=0&playsinline=1&modestbranding=1" title="Exercise video" allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`; return; }
+    case "vsel": { const box = $("#vid"); if (box) box.innerHTML = videoHTML(ds.k, +v); return; }
     case "guide": return openSheet(guideHTML(v, effMode()));
     case "mode": S.mode = v; save(); return render();
     case "theme": S.theme = v; delete S.dark; save(); return render();

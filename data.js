@@ -128,3 +128,41 @@ const NONVEG_SWAPS = {
   5: { 3: { t: "2 rotis + egg curry (2 eggs) + salad", k: 440 } },
   6: { 5: { t: "Chicken & veg stew + 1 roti", k: 340 } },
 };
+
+// Swap library per meal slot. nv: true = contains egg/chicken/fish (hidden for vegetarian users).
+const ALT_MEALS = {
+  wake: [
+    { t: "Warm water + half a lemon", k: 5 }, { t: "Warm water + lemon + 1 tsp honey", k: 25 }, { t: "Jeera water", k: 5 },
+    { t: "Methi seed water (soaked overnight)", k: 5 }, { t: "Ajwain water", k: 5 }, { t: "Green tea (no sugar)", k: 5 },
+    { t: "Warm water + 1 tsp soaked chia seeds", k: 30 }, { t: "Cinnamon water", k: 5 },
+  ],
+  bf: [
+    { t: "Moong dal chilla (2) + mint chutney", k: 280 }, { t: "Besan veggie chilla (2) + 100g curd", k: 290 }, { t: "Veg oats upma, 1 bowl", k: 250 },
+    { t: "Idli (3) + 1 bowl sambar", k: 260 }, { t: "Veg poha, 1 bowl + 15g peanuts", k: 270 }, { t: "Sprouts salad, 1 large bowl + 1 brown toast", k: 250 },
+    { t: "Vegetable dalia upma, 1 bowl", k: 240 }, { t: "Paneer bhurji (60g) + 1 brown toast", k: 300 }, { t: "Curd bowl with fruit & 5 almonds", k: 260 },
+    { t: "2 boiled eggs + 1 brown toast", k: 230, nv: true }, { t: "Egg-white omelette (3 whites) + veggies + 1 toast", k: 230, nv: true }, { t: "Masala omelette (2 eggs) + 1 roti", k: 300, nv: true },
+  ],
+  mid: [
+    { t: "1 apple", k: 80 }, { t: "1 orange / mosambi", k: 60 }, { t: "1 bowl papaya", k: 70 }, { t: "1 guava", k: 70 }, { t: "1 pear or kiwi", k: 60 },
+    { t: "1 bowl watermelon / muskmelon", k: 50 }, { t: "Cucumber & carrot sticks with lemon", k: 40 }, { t: "1 small banana", k: 90 }, { t: "1 glass coconut water", k: 45 },
+  ],
+  lunch: [
+    { t: "2 rotis + lauki sabzi + 1 bowl dal + salad", k: 430 }, { t: "1 bowl brown rice + 1 bowl rajma + salad", k: 450 }, { t: "1 bowl moong dal khichdi + curd + salad", k: 400 },
+    { t: "2 rotis + bhindi sabzi + arhar dal + salad", k: 440 }, { t: "1 bowl rice + low-oil kadhi + stuffed capsicum + salad", k: 450 }, { t: "Veg quinoa pulao + raita", k: 420 },
+    { t: "2 rotis + light palak paneer + salad", k: 460 }, { t: "1 bowl chole + 1 roti + salad", k: 450 },
+    { t: "2 rotis + chicken curry (100g, light) + salad", k: 450, nv: true }, { t: "1 bowl rice + fish curry (light) + salad", k: 440, nv: true },
+    { t: "2 rotis + egg curry (2 eggs) + salad", k: 440, nv: true }, { t: "Grilled chicken tikka salad bowl", k: 380, nv: true },
+  ],
+  eve: [
+    { t: "Green tea + 10 soaked almonds", k: 80 }, { t: "Roasted makhana, 1 handful", k: 90 }, { t: "Roasted chana, 30g + lemon water", k: 110 },
+    { t: "Masala buttermilk + 8 almonds", k: 120 }, { t: "Sprouts chaat, small bowl", k: 120 }, { t: "Fruit chaat, 1 bowl", k: 100 },
+    { t: "Coconut water + 5 walnut halves", k: 100 }, { t: "Clear vegetable soup", k: 70 }, { t: "1 boiled egg + green tea", k: 90, nv: true },
+  ],
+  dinner: [
+    { t: "Mixed veg soup + paneer bhurji (75g) + 1 roti", k: 380 }, { t: "2 rotis + palak sabzi + 1 glass buttermilk", k: 350 }, { t: "Paneer/tofu tikka (100g) + grilled veggies + soup", k: 370 },
+    { t: "Veg dalia khichdi, 1.5 bowls + buttermilk", k: 360 }, { t: "2 rotis + lauki-chana dal + veg raita", k: 380 }, { t: "Moong dal soup + 1 roti + sautéed veggies", k: 330 },
+    { t: "Vegetable stew + 1 roti", k: 330 }, { t: "Stir-fried tofu & vegetables + 1 roti", k: 360 },
+    { t: "Grilled chicken breast (100g) + veggies + soup", k: 340, nv: true }, { t: "Grilled fish (120g) + sautéed veggies + 1 roti", k: 380, nv: true },
+    { t: "Egg bhurji (2 eggs) + 1 roti + soup", k: 370, nv: true },
+  ],
+};

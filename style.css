@@ -146,3 +146,14 @@ ol{margin:0;padding-left:20px}ol li{margin:6px 0}
 .hero-ico{width:64px;height:64px;color:var(--pr-d);stroke-width:1.5}
 .bigic{width:30px;height:30px;color:var(--pr-d)}
 @media(max-width:360px){main{padding-left:12px;padding-right:12px}.week{gap:2px}}
+
+.opt{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:.5px solid var(--bd);padding:12px 0;min-height:56px;text-align:left;color:inherit;font:inherit}
+.opt:last-child{border-bottom:0}.opt .b{flex:1;min-width:0}.opt .b b{display:block;font-weight:600}
+.opt>span:last-child{color:var(--wa)}
+.item[data-act=meal]{cursor:pointer}
+a.pill{display:inline-flex;align-items:center;text-decoration:none}.pill.sel{background:var(--wb);color:#fff}
+.vframe{position:relative;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.vframe iframe,.vplay{position:absolute;inset:0;width:100%;height:100%;border:0;padding:0}
+.vplay{background:linear-gradient(135deg,#1c1c1e,#48484a)}.vplay img{width:100%;height:100%;object-fit:cover;display:block}
+.vbtn{position:absolute;inset:0;margin:auto;width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.62);display:grid;place-items:center}
+.vbtn svg{width:30px;height:30px;fill:#fff;margin-left:3px}.vtitle{font-weight:600;margin-top:10px}

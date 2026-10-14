@@ -163,8 +163,48 @@ function guideHTML(key, mode) {
   const g = GUIDES[key], M = MODES[mode];
   return `<div class="row sp"><h1 style="font-size:26px;margin:0">${g.n}</h1><button class="btn alt" data-act="close" aria-label="Close guide">Done</button></div><div class="mu">${g.m}</div>
   <div class="figs"><div>${pose(g.a)}<span>${g.la}</span></div><div>${pose(g.b)}<span>${g.lb}</span></div></div>
+  <h2>Watch how it is done</h2><div id="vid">${videoHTML(key, 0)}</div>
   <h2>How to do it</h2><div class="card"><ol>${g.s.map(x => `<li>${x}</li>`).join("")}</ol></div>
   <h2>For women</h2><div class="card">${g.f}</div>
   <h2>Avoid</h2><div class="card">${g.x}<div class="mu" style="margin-top:6px">Breathing: ${g.br}</div></div>
   <div class="mu" style="margin:8px 16px">Mode: <b>${M.name}</b> — ${M.note} Stop if you feel pain, dizziness or pelvic pressure, and check with your doctor if pregnant, postpartum or have any health condition.</div>`;
+}
+
+// Curated YouTube tutorials (id, title). Found via web search; embedding can be blocked by a video's owner,
+// so the UI always offers "Open in YouTube" and an alternate video.
+const VIDEOS = {
+  squat: [["e1UYgO67zkw", "How to Squat Properly for Women"], ["LmFitmO_ANw", "How to Squat Properly for Beginners (step-by-step)"]],
+  lunge: [["fydLSJlGx-0", "Lunges for Beginners – How to do a lunge without pain"], ["2LQ1krDBiYY", "How to do a Squat and Lunge (proper form for women)"]],
+  pushup: [["ABbVpmubIGQ", "How to do Push-ups for Beginners (step-by-step)"], ["oSZjbGUTsdI", "Women's Chest Exercise: How to do Push-ups Correctly"]],
+  kneepush: [["_h0mGF0WvHU", "Knee Push-Ups for Absolute Beginners"], ["utzhPQuXWcA", "Kneeling Push-up: how to do it & 3 common mistakes"]],
+  wallpush: [["PkFu8ee6IuY", "Wall Push-up for Seniors & Beginner Exercisers"], ["YB0egDzsu18", "Wall Push-ups for Beginners"]],
+  bridge: [["Q_Bpj91Yiis", "Glute Bridge Exercise – the correct way"], ["OUgsJ8-Vi0E", "How to Perform the Perfect Glute Bridge"]],
+  plank: [["BQu26ABuVS0", "How to Plank Properly for Beginners – step-by-step"], ["8b13VkLlHeo", "How to Plank Properly for Beginners & Seniors"]],
+  mountain: [["OR1eel_5oAY", "Mountain Climbers for Beginners (avoid 3 common mistakes)"], ["De3Gl-nC7IQ", "How to do Mountain Climbers the right way"]],
+  jack: [["bM_4x-5zb0Y", "Jumping Jacks and Low-Impact Jumping Jacks"], ["Bqy1xIXX2nc", "Modified (low-impact) Jumping Jacks – HASfit"]],
+  knees: [["QilgMPG7OaA", "March in Place – HASfit low-impact exercise"], ["-tfnUAl4oQA", "March in Place (high knees)"]],
+  dips: [["AWz_7B1cch0", "How to Properly do Tricep Chair Dips – 3 common mistakes"], ["ktSTgz8KXvo", "Tricep dips in a chair"]],
+  superman: [["UXUGfiNL1lI", "How to Properly do a Superman Exercise"], ["z6PJMT2y8GQ", "Exercise Tutorial – Superman"]],
+  twist: [["C_OjLWMNcqM", "How to do Russian Twists (beginner tutorial)"], ["9V9csctSKj0", "Russian Twist properly & best progression for beginners"]],
+  legraise: [["Cwuxy8eo7iw", "Leg Raises for Beginners – lower core and abs"], ["xJJu-WiROM8", "How to perform the Lying Leg Raise"]],
+  calf: [["KRJIKsY02nE", "Standing Calf Raise Tutorial for Beginners"], ["4HQ8Am9IuME", "Standing Calf Raise (proper form)"]],
+  crunch: [["Z7A2ZkcCs2I", "How to do a Bicycle Crunch for Beginners"], ["kDPxFoCmb-w", "Bicycle Crunch Tutorial – proper form & tips"]],
+  boat: [["gWEey6tp7-c", "Navasana – Boat Pose for Beginners"], ["ojzQkuKpnic", "Boat Pose tutorial for beginners & older practitioners"]],
+  warrior: [["dW231uCUvyg", "Warrior 2 for Beginners – learn correct alignment"], ["_gh-zf8Egus", "Warrior 2 & Triangle Pose tutorial"]],
+  surya: [["5jFfBCQpbP8", "Step-by-Step Sun Salutation for Beginners"], ["pykkDL98ZkQ", "Surya Namaskar step by step, with breathing"]],
+  burpee: [["wGvBfVeCNko", "Burpees for Beginners (step-by-step)"], ["BbyT6-jgtfA", "Burpee modification tutorial (low impact)"]],
+  jumpsquat: [["s21P2j0kYTw", "How to do Squats and Jump Squats in proper form"], ["5qqAUsHmAMU", "How to properly Jump Squat"]],
+  walk: [["OZYDSQ0Ah_o", "Fast Walking Workout in 20 minutes"], ["wQrV75N2BrI", "20 Minute Brisk Walk"]],
+  stretch: [["7KSoWzbznhk", "15 min Full Body Stretch & Cool Down"], ["3qyWpJ34dWw", "5 Minute Full Body Dynamic Warm-Up"]],
+  breathe: [["Nhw92icsQ1A", "Steps to perform Anuloma Viloma correctly – Dr. Hansaji"], ["asWNZkgw9mI", "5-Minute Anulom Vilom Pranayama with timer"]],
+};
+const ytSearch = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+function videoHTML(key, i = 0) {
+  const g = GUIDES[key], list = VIDEOS[key] || [];
+  if (!list.length) return `<div class="card"><p class="mu">No video saved for this exercise yet.</p><a class="pill" href="${ytSearch(g.n + " proper form for women beginners")}" target="_blank" rel="noopener">Search on YouTube ↗</a></div>`;
+  const [id, title] = list[i] || list[0];
+  return `<div class="card vid"><div class="vframe" id="vframe"><button class="vplay" data-act="play" data-v="${id}" data-k="${key}" aria-label="Play video: ${title.replace(/"/g, "")}"><img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" alt="" loading="lazy" onerror="this.remove()"><span class="vbtn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></button></div>
+  <div class="vtitle">${title}</div>
+  <div class="row wrap" style="margin-top:10px">${list.map((v, j) => `<button class="pill ${j === i ? "sel" : ""}" data-act="vsel" data-k="${key}" data-v="${j}" aria-pressed="${j === i}">Video ${j + 1}</button>`).join("")}<a class="pill" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">Open in YouTube ↗</a></div>
+  <p class="mu sm" style="margin:10px 0 0">Needs an internet connection. If a video won't play, tap “Open in YouTube” or try the other video. These are beginner-friendly tutorials from YouTube creators; our tips below cover women-specific form.</p></div>`;
 }
