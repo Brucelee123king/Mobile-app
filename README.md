@@ -20,3 +20,9 @@ Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Ke
 
 ## Local web preview
 `python3 -m http.server` then open http://localhost:8000
+
+## Design
+Apple-HIG-inspired UI (SF type, grouped cards, translucent tab bar) that is fully responsive: bottom tab bar on phones,
+sidebar on desktop/tablet-landscape. Accessibility: 4.5:1 text contrast in light & dark, 44px touch targets, visible focus,
+keyboard + screen-reader support, reduced-motion. Reviewed against the `ui-ux-pro-max` skill checklist
+(imported into `.claude/skills/ui-ux-pro-max`).

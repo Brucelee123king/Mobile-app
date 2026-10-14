@@ -158,10 +158,10 @@ function adaptText(t, mode) {
   });
 }
 
-const pose = (p, cls) => `<svg viewBox="0 0 100 70" class="fig"><line x1="4" y1="63" x2="96" y2="63" class="gr"/>${p[2].map(l => `<polyline points="${l}" class="pr"/>`).join("")}${p[1].map(l => `<polyline points="${l}" class="li"/>`).join("")}<circle cx="${p[0].split(",")[0]}" cy="${p[0].split(",")[1]}" r="5.5" class="hd"/></svg>`;
+const pose = (p, cls) => `<svg viewBox="0 0 100 70" class="fig" role="img" aria-label="Exercise position diagram"><line x1="4" y1="63" x2="96" y2="63" class="gr"/>${p[2].map(l => `<polyline points="${l}" class="pr"/>`).join("")}${p[1].map(l => `<polyline points="${l}" class="li"/>`).join("")}<circle cx="${p[0].split(",")[0]}" cy="${p[0].split(",")[1]}" r="5.5" class="hd"/></svg>`;
 function guideHTML(key, mode) {
   const g = GUIDES[key], M = MODES[mode];
-  return `<div class="row sp"><h1 style="font-size:26px;margin:0">${g.n}</h1><button class="btn alt" id="gx">Done</button></div><div class="mu">${g.m}</div>
+  return `<div class="row sp"><h1 style="font-size:26px;margin:0">${g.n}</h1><button class="btn alt" data-act="close" aria-label="Close guide">Done</button></div><div class="mu">${g.m}</div>
   <div class="figs"><div>${pose(g.a)}<span>${g.la}</span></div><div>${pose(g.b)}<span>${g.lb}</span></div></div>
   <h2>How to do it</h2><div class="card"><ol>${g.s.map(x => `<li>${x}</li>`).join("")}</ol></div>
   <h2>For women</h2><div class="card">${g.f}</div>
