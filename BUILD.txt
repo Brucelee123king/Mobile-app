@@ -1,0 +1,5 @@
+commit: 9524f03785ca242a5d67c89ebb882a3f8cd3da05
+branch: claude/weight-loss-meal-plan-app-e2ziwl
+built:  2026-10-14T04:35:34Z
+Fit90-unsigned.apk    = unsigned release build (cannot be installed until signed)
+Fit90-installable.apk = same build signed (install this on a phone)
